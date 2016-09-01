@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+# x710-lldp-agent Manage x710 lldp agent
+#
+# chkconfig:   - 20 80
+# description: Enables or disabled the lldp agent on x710 intel converged \
+#              network adaptors
+
+### BEGIN INIT INFO
+# Provides: 
+# Required-Start: $network
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start: 
+# Default-Stop:
+# Short-Description: Manage x710 lldp agent
+# Description: Enables or disabled the lldp agent on x710 intel converged
+#              network adaptors
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+
+_lldp_switch(){
+    
+    action=$1
+    if [[ ! "$action" =~ ^(start|stop)$  ]]; then
+        (echo ""Invalid action \"$action\""" ; exit 2)
+    fi
+
+    echo $"${action} disabling embedded lldp in x710"
+    do_unmount=false
+    if ! grep -q ' /sys/kernel/debug ' /etc/mtab ; then
+        echo -n "Mount /sys/kernel/debug: "
+        mount -t debugfs none /sys/kernel/debug  && success || failure
+        echo
+        do_unmount=true
+    fi
+
+    for IFACE_DEBUG_PATH in /sys/kernel/debug/i40e/* 
+    do
+        echo "$action on $(cat ${IFACE_DEBUG_PATH}/command)"
+        echo lldp $action > ${IFACE_DEBUG_PATH}/command
+    done
+
+    if $do_unmount; then
+        if grep -q ' /sys/kernel/debug ' /etc/mtab ; then 
+            echo -n "Unmount /sys/kernel/debug: "
+            umount /sys/kernel/debug && success || failure
+            echo
+        fi
+    fi
+    retval=0
+    return $retval
+}
+
+
+start() {
+    _lldp_switch start
+    retval=$?
+    return $retval
+}
+
+stop() {
+    _lldp_switch stop
+    retval=$?
+    return $retval
+}
+
+restart() {
+    stop
+    start
+}
+
+
+rh_status() {
+    # run checks to determine if the service is running or use generic status
+    status $prog
+}
+
+rh_status_q() {
+    rh_status >/dev/null 2>&1
+}
+
+
+case "$1" in
+    start)
+        #rh_status_q && exit 0
+        $1
+        ;;
+    stop)
+        #rh_status_q || exit 0
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    status)
+        # TODO: need to work out how to see if x710 lldp agent is turned on 
+        echo 'Who knows'
+        #rh_status
+        exit 0
+        ;;
+    condrestart|try-restart)
+        rh_status_q || exit 0
+        restart
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart}"
+        exit 2
+esac
+exit $?
