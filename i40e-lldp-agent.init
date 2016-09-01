@@ -24,7 +24,13 @@
 
 
 _lldp_switch(){
-    
+
+    if [ ! -d /sys/module/i40e ] ; then
+        echo -n "i40e driver not loaded: "
+        success
+        exit 0
+    fi
+
     action=$1
     if [[ ! "$action" =~ ^(start|stop)$  ]]; then
         (echo ""Invalid action \"$action\""" ; exit 2)
